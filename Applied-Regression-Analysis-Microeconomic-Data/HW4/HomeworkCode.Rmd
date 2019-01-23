@@ -1,0 +1,113 @@
+---
+title: 'Applied Regression: Homework 4'
+author: "Group 7"
+date: "December 4, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(AER)
+```
+
+```{r}
+# import data
+setwd("D:/Econometrics/Program Evaluation/HW/Applied-Regrassion-Analysis/HW4")
+acs = read.table("Cal.csv", header=T, sep=',', stringsAsFactors = F)
+
+# Data cleaning
+acs$uhrswork[acs$uhrswork=='99 (Topcode)'] = 99
+acs$uhrswork = ifelse(acs$uhrswork=='N/A', 0, acs$uhrswork)
+acs$uhrswork = as.numeric(acs$uhrswork)
+acs$workedyr = ifelse(acs$workedyr=='Yes', 1, 0)
+```
+# Q1: Verify that the same sex variable has predicts having more children with and without the covariates.
+```{r}
+model.wo = lm(morekids ~ samesex, data = acs)
+summary(model.wo)
+
+model.wi = lm(morekids ~ samesex + as.factor(age) + white + black + asian + hisp, data = acs)
+summary(model.wi)
+```
+without covariates: 0.038**
+with covariates: 0.041**
+# Q2: Using OLS, depict the impact of having more children on each of the three outcome variables.
+```{r}
+
+model.2.1 = lm(incearn ~ morekids + as.factor(age) + white + black + asian + hisp, data = acs)
+model.2.2 = lm(uhrswork ~ morekids + as.factor(age) + white + black + asian + hisp, data = acs)
+model.2.3 = lm(workedyr ~ morekids + as.factor(age) + white + black + asian + hisp, data = acs)
+
+summary(model.2.1)
+summary(model.2.2)
+summary(model.2.3)
+
+```
+incearn: -11173.5***
+uhrswork: -4.8531***
+workedyr: -0.13139***
+#Q3: Using two-stage least squares, depict the impact of having more children on each of the three outcome variables. Use the variable for “samesex” variable as the instrument.
+```{r}
+# First Stage
+acs$morekids_pred = fitted.values(model.wi)
+
+# Second Stage
+model.3.1 = lm(incearn ~ morekids_pred + as.factor(age) + white + black + asian + hisp, data = acs)
+model.3.2 = lm(uhrswork ~ morekids_pred + as.factor(age) + white + black + asian + hisp, data = acs)
+model.3.3 = lm(workedyr ~ morekids_pred + as.factor(age) + white + black + asian + hisp, data = acs)
+
+summary(model.3.1)
+summary(model.3.2)
+summary(model.3.3)
+
+# IVReg
+model.3.4 = ivreg(incearn ~ morekids + as.factor(age) + white + black + asian + hisp | samesex + as.factor(age) + white 
+                  + black + asian + hisp, data = acs)
+model.3.5 = ivreg(uhrswork ~ morekids + as.factor(age) + white + black + asian + hisp | samesex + as.factor(age) + white 
+                  + black + asian + hisp, data = acs)
+model.3.6 = ivreg(workedyr ~ morekids + as.factor(age) + white + black + asian + hisp | samesex + as.factor(age) + white 
+                  + black + asian + hisp, data = acs)
+
+summary(model.3.4)
+summary(model.3.5)
+summary(model.3.6)
+```
+incearn: 6238.0
+uhrswork: 4.33114
+workedyr: -0.11090
+# Q4: Using the test given in BJLST, test for selection bias for each of the three outcomes. Be sure to estimate the selection bias.
+```{r}
+# BJLST test for selection bias
+
+# test on Y1
+model.4.1 = lm(incearn ~ samesex + as.factor(age) + white + black + asian + hisp, data = acs[acs$morekids==1,])
+model.4.2 = lm(uhrswork ~ samesex + as.factor(age) + white + black + asian + hisp, data = acs[acs$morekids==1,])
+model.4.3 = lm(workedyr ~ samesex + as.factor(age) + white + black + asian + hisp, data = acs[acs$morekids==1,])
+
+summary(model.4.1)
+summary(model.4.2)
+summary(model.4.3)
+
+# test on Y0
+model.4.4 = lm(incearn ~ samesex + as.factor(age) + white + black + asian + hisp, data = acs[acs$morekids==0,])
+model.4.5 = lm(uhrswork ~ samesex + as.factor(age) + white + black + asian + hisp, data = acs[acs$morekids==0,])
+model.4.6 = lm(workedyr ~ samesex + as.factor(age) + white + black + asian + hisp, data = acs[acs$morekids==0,])
+
+summary(model.4.4)
+summary(model.4.5)
+summary(model.4.6)
+
+```
+Y1:
+incearn -544.1
+uhrswork  0.1026
+workedyr -0.009324
+
+Y0:
+incearn 1306.5
+uhrswork  0.5449
+workedyr  0.007447
